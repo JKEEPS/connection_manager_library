@@ -1,0 +1,6 @@
+tableauserverclient
+tableauhyperapi
+cx_Oracle
+boto3
+psycopg2
+pyyaml

@@ -1,0 +1,13 @@
+README.md
+setup.py
+connection_manager/__init__.py
+connection_manager/aws_connection.py
+connection_manager/config_manager.py
+connection_manager/oracle_connection.py
+connection_manager/redshift_connection.py
+connection_manager/tableau_connection.py
+connection_manager.egg-info/PKG-INFO
+connection_manager.egg-info/SOURCES.txt
+connection_manager.egg-info/dependency_links.txt
+connection_manager.egg-info/requires.txt
+connection_manager.egg-info/top_level.txt
