@@ -28,6 +28,3 @@ tableau_manager.connect_to_server()
 - Manage Tableau connections and admin tasks.
 - Connect to Oracle databases, AWS services, and Redshift.
 - Simplifies multi-service connection workflows.
-
-## Author
-Your Name
