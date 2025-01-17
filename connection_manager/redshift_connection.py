@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 class RedshiftConnectionManager:
     """
-    Manages connections to Amazon Redshift.
+    Manages connections to Amazon Redshift and allows command passthrough.
     """
     def __init__(self, config: Optional[Dict] = None):
         """
@@ -12,6 +12,7 @@ class RedshiftConnectionManager:
         :param config: A dictionary containing Redshift connection details.
         """
         self.config: Optional[Dict] = config
+        self.connection: Optional[psycopg2.extensions.connection] = None
 
     def connect(self, host: Optional[str] = None, port: Optional[int] = None, dbname: Optional[str] = None, user: Optional[str] = None, password: Optional[str] = None) -> psycopg2.extensions.connection:
         """
@@ -31,10 +32,23 @@ class RedshiftConnectionManager:
             user = user or self.config["redshift"]["user"]
             password = password or self.config["redshift"]["password"]
 
-            connection = psycopg2.connect(
+            self.connection = psycopg2.connect(
                 host=host, port=port, dbname=dbname, user=user, password=password
             )
             print("Successfully connected to Redshift.")
-            return connection
+            return self.connection
         except Exception as e:
             raise ConnectionError(f"Failed to connect to Redshift: {e}")
+
+    def execute_query(self, query: str) -> psycopg2.extensions.cursor:
+        """
+        Execute a SQL query on the Redshift database.
+
+        :param query: SQL query string to execute.
+        :return: Cursor with the results of the query.
+        """
+        if not self.connection:
+            raise ConnectionError("Not connected to Redshift. Call 'connect' first.")
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return cursor
