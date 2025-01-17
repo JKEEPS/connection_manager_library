@@ -1,6 +1,6 @@
 import json
 import yaml
-from typing import Dict
+from typing import Dict, Optional
 
 class ConfigManager:
     """
@@ -26,39 +26,56 @@ class ConfigManager:
             raise FileNotFoundError(f"Failed to load config file: {e}")
 
     @staticmethod
-    def create_sample_config(file_path: str, format: str = "yaml") -> None:
+    def create_sample_config(file_path: str, config_type: Optional[str] = "all", format: str = "yaml") -> None:
         """
-        Create a sample configuration file.
+        Create a sample configuration file based on the specified type.
 
         :param file_path: Path where the sample config file will be created.
+        :param config_type: The type of configuration to include (e.g., "tableau", "oracle", "aws", "redshift", or "all").
         :param format: Format of the config file (yaml or json).
         """
-        sample_config = {
+        sample_configs = {
             "tableau": {
-                "server_url": "https://your-tableau-server.com",
-                "token_name": "your-token-name",
-                "personal_access_token": "your-personal-access-token",
-                "site_id": "default",
-                "server_version": "2023.2"
+                "tableau": {
+                    "server_url": "https://your-tableau-server.com",
+                    "token_name": "your-token-name",
+                    "personal_access_token": "your-personal-access-token",
+                    "site_id": "default",
+                    "server_version": "2023.2"
+                }
             },
             "oracle": {
-                "dsn": "your-host:1521/your-service",
-                "user": "your-username",
-                "password": "your-password"
+                "oracle": {
+                    "dsn": "your-host:1521/your-service",
+                    "user": "your-username",
+                    "password": "your-password"
+                }
             },
             "aws": {
-                "access_key_id": "your-access-key-id",
-                "secret_access_key": "your-secret-access-key",
-                "region_name": "your-region"
+                "aws": {
+                    "access_key_id": "your-access-key-id",
+                    "secret_access_key": "your-secret-access-key",
+                    "region_name": "your-region"
+                }
             },
             "redshift": {
-                "host": "your-cluster-endpoint",
-                "port": 5439,
-                "dbname": "your-database-name",
-                "user": "your-username",
-                "password": "your-password"
+                "redshift": {
+                    "host": "your-cluster-endpoint",
+                    "port": 5439,
+                    "dbname": "your-database-name",
+                    "user": "your-username",
+                    "password": "your-password"
+                }
             }
         }
+
+        # Select the specific config type or all types
+        if config_type == "all":
+            sample_config = {key: value for config in sample_configs.values() for key, value in config.items()}
+        elif config_type in sample_configs:
+            sample_config = sample_configs[config_type]
+        else:
+            raise ValueError("Invalid config_type specified. Choose from 'tableau', 'oracle', 'aws', 'redshift', or 'all'.")
 
         try:
             with open(file_path, 'w') as file:
