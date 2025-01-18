@@ -17,9 +17,9 @@ pip install connection_manager
 ## Usage
 
 ```python
-from connection_manager import TableauConnectionManager, ConfigManager
+import connection_manager as cm
 
-config = ConfigManager.load_config("config.yaml")
+config = cm.load_config("config.yaml")
 tableau_manager = TableauConnectionManager(config)
 tableau_manager.connect_to_server()
 ```
