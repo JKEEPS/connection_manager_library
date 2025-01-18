@@ -1,11 +1,57 @@
+# connection_manager/__init__.py
+from .tableau_connection import TableauConnectionManager
+from .oracle_connection import OracleConnectionManager
+from .aws_connection import AWSConnectionManager
+from .redshift_connection import RedshiftConnectionManager
+from .config_manager import ConfigManager
+
+__all__ = [
+    "TableauConnectionManager",
+    "OracleConnectionManager",
+    "AWSConnectionManager",
+    "RedshiftConnectionManager",
+    "ConfigManager",
+]
+
+# connection_manager/tableau_connection.py
 import tableauserverclient as TSC
+from tableauhyperapi import HyperProcess, Telemetry, Connection, TableDefinition, SqlType, Inserter
+from tableauhyperapi import NOT_NULLABLE
+import pandas as pd
+from typing import Optional, List, Dict
+import os
 
 class TableauConnectionManager:
-    def __init__(self, config=None):
-        self.config = config
-        self.server = None
+    """
+    Manages connections to Tableau Server and provides simplified access to Tableau Server Client (TSC) resources.
+    """
+    def __init__(self, config: Optional[Dict] = None):
+        """
+        Initialise the TableauConnectionManager with optional configuration.
 
-    def connect_to_server(self, server_url=None, token_name=None, personal_access_token=None, site_id=None, server_version=None):
+        :param config: A dictionary containing Tableau connection details.
+        """
+        self.config: Optional[Dict] = config
+        self.server: Optional[TSC.Server] = None
+
+    def connect_to_server(
+        self, 
+        server_url: Optional[str] = None, 
+        token_name: Optional[str] = None,
+        personal_access_token: Optional[str] = None,
+        site_id: Optional[str] = None,
+        server_version: Optional[str] = None
+    ) -> TSC.Server:
+        """
+        Connect to Tableau Server using Personal Access Token.
+
+        :param server_url: The URL of the Tableau Server.
+        :param token_name: The name of the personal access token.
+        :param personal_access_token: The value of the personal access token.
+        :param site_id: The Tableau site ID.
+        :param server_version: The version of Tableau Server to use.
+        :return: An authenticated Tableau Server object.
+        """
         try:
             server_url = server_url or self.config["tableau"]["server_url"]
             token_name = token_name or self.config["tableau"]["token_name"]
@@ -27,72 +73,130 @@ class TableauConnectionManager:
         except Exception as e:
             raise ConnectionError(f"Failed to connect to Tableau Server: {e}")
 
-    def list_users(self):
-        try:
-            all_users, _ = self.server.users.get()
-            return [{"id": user.id, "name": user.name, "email": user.email, "site_role": user.site_role} for user in all_users]
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve users: {e}")
+    @property
+    def datasources(self) -> TSC.Datasources:
+        """Access the Tableau Server datasources endpoint."""
+        return self.server.datasources
 
-    def list_datasources(self):
-        try:
-            all_datasources, _ = self.server.datasources.get()
-            return [{"id": ds.id, "name": ds.name, "project_name": ds.project_name, "created_at": ds.created_at} for ds in all_datasources]
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve datasources: {e}")
+    @property
+    def workbooks(self) -> TSC.Workbooks:
+        """Access the Tableau Server workbooks endpoint."""
+        return self.server.workbooks
 
-    def list_flows(self):
-        try:
-            all_flows, _ = self.server.flows.get()
-            return [{"id": flow.id, "name": flow.name, "project_name": flow.project_name, "created_at": flow.created_at} for flow in all_flows]
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve flows: {e}")
+    @property
+    def flows(self) -> TSC.Flows:
+        """Access the Tableau Server flows endpoint."""
+        return self.server.flows
 
-    def list_dashboards(self):
-        try:
-            all_workbooks, _ = self.server.workbooks.get()
-            return [{"id": wb.id, "name": wb.name, "project_name": wb.project_name, "created_at": wb.created_at} for wb in all_workbooks]
-        except Exception as e:
-            raise RuntimeError(f"Failed to retrieve dashboards: {e}")
+    @property
+    def projects(self) -> TSC.Projects:
+        """Access the Tableau Server projects endpoint."""
+        return self.server.projects
 
-    def create_user(self, username, site_role, email=None):
-        try:
-            new_user = TSC.UserItem(name=username, site_role=site_role, auth_setting="ServerDefault")
-            if email:
-                new_user.email = email
-            user = self.server.users.add(new_user)
-            print(f"User '{username}' created successfully.")
-            return {"id": user.id, "name": user.name, "email": user.email, "site_role": user.site_role}
-        except Exception as e:
-            raise RuntimeError(f"Failed to create user '{username}': {e}")
+    @property
+    def users(self) -> TSC.Users:
+        """Access the Tableau Server users endpoint."""
+        return self.server.users
 
-    def delete_user(self, username_or_id):
-        try:
-            all_users = self.list_users()
-            user_to_delete = next((u for u in all_users if u["id"] == username_or_id or u["name"] == username_or_id), None)
-            if not user_to_delete:
-                raise ValueError(f"User '{username_or_id}' not found.")
-            self.server.users.remove(user_to_delete["id"])
-            print(f"User '{user_to_delete['name']}' deleted successfully.")
-        except Exception as e:
-            raise RuntimeError(f"Failed to delete user '{username_or_id}': {e}")
+    def load_hyper_to_dataframe(self, datasource_id: str) -> pd.DataFrame:
+        """
+        Load data from a published Tableau hyper file into a Pandas DataFrame.
 
-    def update_user_role(self, username_or_id, new_role):
+        :param datasource_id: The ID of the datasource on Tableau Server.
+        :return: DataFrame containing the data from the hyper file.
+        """
         try:
-            all_users = self.list_users()
-            user_to_update = next((u for u in all_users if u["id"] == username_or_id or u["name"] == username_or_id), None)
-            if not user_to_update:
-                raise ValueError(f"User '{username_or_id}' not found.")
-            user = self.server.users.get_by_id(user_to_update["id"])
-            user.site_role = new_role
-            self.server.users.update(user)
-            print(f"User '{user.name}' updated to role '{new_role}' successfully.")
-        except Exception as e:
-            raise RuntimeError(f"Failed to update user '{username_or_id}': {e}")
+            # Download the .hyper file from Tableau Server
+            temp_file = f"{datasource_id}.hyper"
+            self.datasources.download(datasource_id, filepath=temp_file)
 
-    def list_projects(self):
-        try:
-            all_projects, _ = self.server.projects.get()
-            return [{"id": project.id, "name": project.name, "description": project.description} for project in all_projects]
+            with HyperProcess(telemetry=Telemetry.SEND_USAGE_DATA_TO_TABLEAU) as hyper:
+                with Connection(endpoint=hyper.endpoint, database=temp_file) as connection:
+                    table_names = connection.catalog.get_table_names("Extract")
+                    if not table_names:
+                        raise ValueError("No tables found in the Hyper file.")
+
+                    table_name = table_names[0]
+                    result = connection.execute_query(f"SELECT * FROM {table_name}")
+                    dataframe = pd.DataFrame(result)
+                    dataframe.columns = [column.name for column in connection.catalog.get_table_definition(table_name).columns]
+
+            os.remove(temp_file)
+            return dataframe
+
         except Exception as e:
-            raise RuntimeError(f"Failed to retrieve projects: {e}")
+            raise RuntimeError(f"Failed to load hyper file into DataFrame: {e}")
+
+    def retrieve_data_from_local_hyper(self, hyper_file: str) -> pd.DataFrame:
+        """
+        Retrieve data from a local hyper file into a Pandas DataFrame.
+
+        :param hyper_file: Path to the local hyper file.
+        :return: DataFrame containing the data from the hyper file.
+        """
+        try:
+            with HyperProcess(telemetry=Telemetry.SEND_USAGE_DATA_TO_TABLEAU) as hyper:
+                with Connection(endpoint=hyper.endpoint, database=hyper_file) as connection:
+                    table_names = connection.catalog.get_table_names("Extract")
+                    if not table_names:
+                        raise ValueError("No tables found in the Hyper file.")
+
+                    table_name = table_names[0]
+                    result = connection.execute_query(f"SELECT * FROM {table_name}")
+                    dataframe = pd.DataFrame(result)
+                    dataframe.columns = [column.name for column in connection.catalog.get_table_definition(table_name).columns]
+
+            return dataframe
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to retrieve data from local Hyper file: {e}")
+
+    def dataframe_to_local_hyper(self, dataframe: pd.DataFrame, hyper_file: str, table_name: str = "Extract") -> None:
+        """
+        Save a Pandas DataFrame into a local hyper file.
+
+        :param dataframe: DataFrame containing the data to save.
+        :param hyper_file: Path to the output hyper file.
+        :param table_name: Name of the table inside the Hyper file.
+        """
+        try:
+            with HyperProcess(telemetry=Telemetry.SEND_USAGE_DATA_TO_TABLEAU) as hyper:
+                with Connection(endpoint=hyper.endpoint, database=hyper_file, create_mode=Connection.CreateMode.CREATE_AND_REPLACE) as connection:
+                    table_definition = TableDefinition(
+                        table_name=table_name,
+                        columns=[(col, SqlType.text(), NOT_NULLABLE) for col in dataframe.columns]
+                    )
+                    connection.catalog.create_table(table_definition)
+
+                    with Inserter(connection, table_definition) as inserter:
+                        inserter.add_rows(dataframe.values.tolist())
+                        inserter.execute()
+
+            print(f"DataFrame saved to {hyper_file} successfully.")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to save DataFrame to Hyper file: {e}")
+
+    def dataframe_to_published_datasource(self, dataframe: pd.DataFrame, datasource_name: str, project_id: str) -> None:
+        """
+        Publish a Pandas DataFrame to Tableau Server as a datasource.
+
+        :param dataframe: DataFrame containing the data to publish.
+        :param datasource_name: Name of the published datasource.
+        :param project_id: Tableau project ID where the datasource will be published.
+        """
+        temp_file = f"{datasource_name}.hyper"
+        try:
+            self.dataframe_to_local_hyper(dataframe, temp_file)
+
+            datasource = TSC.DatasourceItem(project_id)
+            self.server.datasources.publish(datasource, temp_file, TSC.Server.PublishMode.Overwrite)
+
+            print(f"Datasource {datasource_name} published successfully.")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to publish DataFrame as datasource: {e}")
+
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)

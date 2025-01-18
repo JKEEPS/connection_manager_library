@@ -2,10 +2,10 @@ Metadata-Version: 2.1
 Name: connection_manager
 Version: 1.0.0
 Summary: Unified library for managing connections to Tableau, Oracle, AWS, and Redshift
-Author: Your Name
+Author: JKEEPS
 Requires-Dist: tableauserverclient
 Requires-Dist: tableauhyperapi
 Requires-Dist: cx_Oracle
-Requires-Dist: boto3
+Requires-Dist: boto3==1.34.69
 Requires-Dist: psycopg2
 Requires-Dist: pyyaml
