@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="connection_manager",
-    version="1.0.0",
+    version="1.1.0",
     description="Unified library for managing connections to Tableau, Oracle, AWS, and Redshift",
     author="JKEEPS",
     packages=find_packages(),
